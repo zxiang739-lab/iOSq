@@ -1,17 +1,21 @@
-# Xcode
+# ===== VTFramePro .gitignore（Xcode / macOS 标准忽略）=====
+
+# ---- Xcode 构建产物 ----
 build/
 DerivedData/
-*.xcuserstate
-*.xccheckout
-*.xcscmblueprint
-xcuserdata/
-*.moved-aside
-*.hmap
-*.ipa
+*.app
 *.dSYM.zip
 *.dSYM
+*.hmap
 
-# Signing materials — never commit
+# ---- Xcode 用户私有配置（不随仓库提交）----
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# ---- 签名材料（绝不入库）----
 *.p12
 *.cer
 *.certSigningRequest
@@ -19,11 +23,32 @@ xcuserdata/
 *.provisionprofile
 ExportOptions.plist
 
-# macOS
+# ---- Swift Package Manager（本项目零第三方依赖，仅防御性忽略）----
+.swiftpm/
+.build/
+Package.resolved
+
+# ---- CocoaPods / Carthage（防御性忽略，项目不使用）----
+Pods/
+Carthage/
+
+# ---- macOS 系统文件 ----
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
 
-# Swift / SPM
-.swiftpm/
-.build/
+# ---- 归档与导出 ----
+*.ipa
+*.xcarchive
+
+# ---- 用户导入的模型与素材（不内置任何模型，本地调试产物不入库）----
+*.mlpackage/
+*.mlmodel
+*.mlmodelc/
+*.mov
+*.mp4
+
+# ---- 日志与临时文件 ----
+*.log
+tmp/
