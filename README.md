@@ -61,37 +61,23 @@
 3. 连接 iPhone（iOS 26+），选择真机运行（⌘R）。
 4. 首次进入「模型库」可查看系统 VT 引擎能力检测结果；使用系统引擎时首次 `prepare` 可能触发系统模型下载（界面有三态提示与重试）。
 
-### 签名打包 IPA
+### 打包 Unsigned IPA（无需签名配置）
 
-仓库提供一键脚本 `scripts/package-ipa.sh`：归档 → 签名 → 导出 `VTFramePro.ipa`。需 Mac + Xcode 26，并已在 Xcode 登录 Apple ID。
+仓库提供一键脚本 `scripts/package-ipa.sh`：**无签名构建** → 导出 `VTFramePro-unsigned-<配置>.ipa`。只需 Mac + Xcode 26，**无需任何证书 / Team ID / Secrets**。
 
 ```bash
-# Team ID 在 Xcode → Signing & Capabilities 里，10 位
-# 免费证书 / 开发包（默认真机调试 IPA）
-bash scripts/package-ipa.sh --team YOUR_TEAM_ID
+# Release（默认）
+bash scripts/package-ipa.sh
 
-# 付费账号 Ad Hoc 分发
-bash scripts/package-ipa.sh --team YOUR_TEAM_ID --method ad-hoc
-
-# App Store Connect 上传包
-bash scripts/package-ipa.sh --team YOUR_TEAM_ID --method app-store
+# Debug
+bash scripts/package-ipa.sh --configuration Debug
 ```
 
-产物：`build/ipa/VTFramePro.ipa`
+产物：`build/ipa/VTFramePro-unsigned-Release.ipa`（或 Debug 同名后缀）
 
-安装到 iPhone：Xcode → Window → Devices and Simulators，把 IPA 拖进去。开发包要求该设备已登记在你的描述文件里。
+> 该 IPA 未签名：可自行用 Apple 证书（开发 / Ad Hoc / App Store）签名后安装，或用 sideloadly 等工具侧载到已登记设备；App Store 上架请在 `Xcode → Archive` 中以正式签名重新导出。
 
-GitHub Actions 也可打 IPA：Actions → **Package IPA** → Run workflow。先在仓库 Secrets 配置：
-
-| Secret | 说明 |
-|---|---|
-| `DEVELOPMENT_TEAM` | 10 位 Team ID |
-| `BUILD_CERTIFICATE_BASE64` | `.p12` 的 base64 |
-| `P12_PASSWORD` | p12 密码 |
-| `BUILD_PROVISION_PROFILE_BASE64` | `.mobileprovision` 的 base64 |
-| `KEYCHAIN_PASSWORD` | 可选，临时钥匙串密码 |
-
-`bash scripts/package-ipa.sh --help` 查看全部参数（含手动签名 `--p12` / `--provision`）。
+GitHub Actions 一键打包：**Actions → Build Unsigned IPA → Run workflow**，无需配置任何 Secrets。
 
 ### 权限（Info.plist 已含全部键）
 - `NSCameraUsageDescription`（实时预览）
