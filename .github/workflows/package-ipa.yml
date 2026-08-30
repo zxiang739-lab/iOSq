@@ -1,17 +1,8 @@
-name: Package IPA
+name: Build Unsigned IPA
 
 on:
   workflow_dispatch:
     inputs:
-      method:
-        description: "导出方式"
-        required: true
-        default: development
-        type: choice
-        options:
-          - development
-          - ad-hoc
-          - app-store
       configuration:
         description: "构建配置"
         required: true
@@ -26,11 +17,10 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
-  package:
-    name: Sign & export IPA
+  build:
+    name: Build unsigned IPA
     runs-on: macos-26
     steps:
       - name: Checkout
@@ -44,50 +34,15 @@ jobs:
             sudo xcode-select -s /Applications/Xcode_26.app
           fi
           xcodebuild -version
-          xcodebuild -showsdks
 
-      - name: Decode signing materials
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      - name: Build unsigned IPA
         run: |
-          mkdir -p "$RUNNER_TEMP/signing"
-          if [[ -n "${BUILD_CERTIFICATE_BASE64}" ]]; then
-            echo -n "${BUILD_CERTIFICATE_BASE64}" | base64 --decode > "$RUNNER_TEMP/signing/cert.p12"
-            echo "P12_PATH=$RUNNER_TEMP/signing/cert.p12" >> "$GITHUB_ENV"
-          fi
-          if [[ -n "${BUILD_PROVISION_PROFILE_BASE64}" ]]; then
-            echo -n "${BUILD_PROVISION_PROFILE_BASE64}" | base64 --decode > "$RUNNER_TEMP/signing/profile.mobileprovision"
-            echo "MOBILEPROVISION_PATH=$RUNNER_TEMP/signing/profile.mobileprovision" >> "$GITHUB_ENV"
-          fi
-
-      - name: Package IPA
-        env:
-          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          METHOD_INPUT: ${{ github.event.inputs.method || 'ad-hoc' }}
-          CONFIG_INPUT: ${{ github.event.inputs.configuration || 'Release' }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${DEVELOPMENT_TEAM}" ]]; then
-            echo "::error::请在仓库 Settings → Secrets and variables → Actions 中配置 DEVELOPMENT_TEAM"
-            exit 1
-          fi
-          if [[ -z "${P12_PATH:-}" || -z "${MOBILEPROVISION_PATH:-}" ]]; then
-            echo "::error::CI 打包需要 Secrets: BUILD_CERTIFICATE_BASE64、P12_PASSWORD、BUILD_PROVISION_PROFILE_BASE64"
-            exit 1
-          fi
-          METHOD="$METHOD_INPUT"
-          if [[ "${GITHUB_REF_TYPE}" == "tag" && "$METHOD" == "development" ]]; then
-            METHOD="ad-hoc"
-          fi
-          bash scripts/package-ipa.sh             --team "${DEVELOPMENT_TEAM}"             --method "${METHOD}"             --configuration "${CONFIG_INPUT}"
+          bash scripts/package-ipa.sh --configuration "${{ github.event.inputs.configuration || 'Release' }}"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v5
         with:
-          name: VTFramePro.ipa
+          name: VTFramePro-unsigned.ipa
           path: build/ipa/*.ipa
           if-no-files-found: error
           retention-days: 14
