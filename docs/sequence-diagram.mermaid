@@ -1,0 +1,41 @@
+%% VTFramePro 关键链路时序图
+%% 图一：实时链路（以"实时补帧"为例）
+sequenceDiagram
+    autonumber
+    actor 用户
+    participant V as RealtimePreviewView
+    participant VM as RealtimeViewModel
+    participant REG as EngineRegistry
+    participant CAM as CameraCaptureService
+    participant PIPE as RealtimePipelineService
+    participant ENG as AIEngine(VT 或 CoreML)
+    participant MON as MetricsCollector
+
+    用户->>V: 点击「启动」
+    V->>VM: startTapped()
+    VM->>REG: resolveUsableEngine(.frameInterpolation)
+    alt 无可用引擎
+        REG-->>VM: nil → 置灰入口 + 原因提示
+    else 有可用引擎
+        REG-->>VM: engine
+        VM->>ENG: prepare(for: .frameInterpolation)
+        Note over ENG: VT: isSupported→模型下载三态<br/>CoreML: 加载+黑帧预热
+        ENG-->>VM: stateUpdates(.ready / .modelDownloading / .downloadFailed)
+        VM->>CAM: start()（权限检查 → AVCaptureSession 720p30）
+        CAM-->>PIPE: AsyncStream<CMSampleBuffer>（.bufferingNewest(1)）
+        VM->>PIPE: start(mode: .realtimeInterpolation, input:)
+        loop 每帧（推理门闩：仅 1 次在飞）
+            PIPE->>PIPE: 帧配对 (F[n-1], F[n])
+            PIPE->>ENG: interpolate(frame0:frame1:at:0.5)
+            ENG-->>PIPE: 中间帧 CVPixelBuffer（池化分配）
+            PIPE->>VM: previewFrames（DisplayLink 2× 节拍：原帧/中间帧交替）
+            VM-->>V: previewFrame 上屏（Metal 纹理直渲，零拷贝）
+        end
+        MON-->>VM: 每 500ms PerformanceMetrics（FPS/延迟/占用估算）
+        VM-->>V: GlassStatusPanel 刷新
+    end
+    用户->>V: 点击「停止」
+    V->>VM: stopTapped()
+    VM->>PIPE: stop()（清配对缓冲/丢帧门闩）
+    VM->>CAM: stop()
+    VM->>ENG: reset()
