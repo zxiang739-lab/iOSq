@@ -1,0 +1,120 @@
+classDiagram
+    class AIEngine {
+        <<protocol>>
+        +String engineID
+        +String displayName
+        +EngineKind kind
+        +Set~EngineCapability~ capabilities
+        +EngineState state
+        +AsyncStream~EngineState~ stateUpdates
+        +prepare(for: EngineCapability) async throws
+        +interpolate(frame0: CVPixelBuffer, frame1: CVPixelBuffer, at: Float, capability: InterpolationConfig) CVPixelBuffer
+        +upscale(frame: CVPixelBuffer, scale: Int, quality: UpscaleQuality) CVPixelBuffer
+        +reset() async
+    }
+    class VTFrameProcessorEngine {
+        +static runtimeSupported: Bool
+        -downloadManager: VTModelDownloadManager
+    }
+    class CoreMLImportEngine {
+        -model: MLModel?
+        -descriptor: ImportedModel
+        +warmUp() throws
+    }
+    class VTModelDownloadManager {
+        +statusUpdates: AsyncStream~EngineState~
+        +checkOrStartDownload() async
+        +retry() async
+    }
+    class EngineRegistry {
+        +engines: [AIEngine]
+        +activeEngine: [EngineCapability: AIEngine]
+        +register(engine: AIEngine)
+        +setActive(engine: AIEngine, for: EngineCapability)
+        +resolveUsableEngine(for: EngineCapability) AIEngine?
+        +refreshStates() async
+    }
+    class TensorValidator {
+        +validate(modelURL: URL, declaredKind: EngineCapability) throws -> [TensorSpec]
+    }
+    class CameraCaptureService {
+        +sampleBuffers: AsyncStream~CMSampleBuffer~
+        +start() async throws
+        +stop()
+    }
+    class RealtimePipelineService {
+        +previewFrames: AsyncStream~CVPixelBuffer~
+        +metrics: AsyncStream~PerformanceMetrics~
+        +start(mode: ProcessingMode, input: AsyncStream~CMSampleBuffer~) async throws
+        +switchEngine(to: AIEngine) async
+        +stop()
+    }
+    class OfflineTaskQueue {
+        <<actor>>
+        +taskUpdates: AsyncStream~OfflineTask~
+        +enqueue(task: OfflineTask)
+        +cancel(taskID: UUID)
+    }
+    class OfflineProcessingService {
+        +process(task: OfflineTask) async throws -> URL
+    }
+    class ModelLibraryService {
+        +models: [ImportedModel]
+        +importModel(from: URL, kind: EngineCapability) async throws -> ImportedModel
+        +delete(modelID: UUID) async throws
+    }
+    class PhotoLibraryService {
+        +saveVideo(at: URL) async throws
+    }
+    class PixelBufferPool {
+        +acquire(width: Int, height: Int) CVPixelBuffer
+        +drain()
+    }
+    class RealtimeViewModel {
+        <<@MainActor @Observable>>
+        +previewFrame: CVPixelBuffer?
+        +metrics: PerformanceMetrics
+        +engineState: EngineState
+        +startTapped() async
+        +stopTapped()
+        +selectEngine(id: String) async
+    }
+    class OfflineTaskViewModel {
+        <<@MainActor @Observable>>
+        +tasks: [OfflineTask]
+        +importVideo(url: URL, mode: ProcessingMode) async
+        +cancel(taskID: UUID) async
+    }
+    class OfflineTask {
+        +UUID id
+        +ProcessingMode mode
+        +URL sourceVideoURL
+        +String engineID
+        +OfflineTaskStatus status
+    }
+    class AppError {
+        <<enumeration>>
+        +permissionDenied
+        +engineUnsupported
+        +modelValidationFailed
+        +noUsableEngine
+        +outOfMemory
+    }
+
+    AIEngine <|.. VTFrameProcessorEngine : 实现
+    AIEngine <|.. CoreMLImportEngine : 实现
+    VTFrameProcessorEngine *-- VTModelDownloadManager : 内嵌
+    EngineRegistry o-- AIEngine : 注册/切换
+    CoreMLImportEngine ..> TensorValidator : 导入时校验
+    RealtimePipelineService --> AIEngine : 仅面向协议
+    RealtimePipelineService --> PixelBufferPool : 输出帧池化
+    CameraCaptureService ..> RealtimePipelineService : AsyncStream 帧流
+    OfflineTaskQueue --> OfflineProcessingService : 串行执行
+    OfflineProcessingService --> AIEngine : 仅面向协议
+    OfflineProcessingService --> PhotoLibraryService : 完成保存
+    RealtimeViewModel --> RealtimePipelineService
+    RealtimeViewModel --> EngineRegistry : 引擎选择/降级
+    OfflineTaskViewModel --> OfflineTaskQueue
+    OfflineTaskViewModel --> EngineRegistry
+    RealtimePipelineService ..> AppError : throws
+    OfflineProcessingService ..> AppError : throws
