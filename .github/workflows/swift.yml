@@ -1,7 +1,5 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
-name: Swift
+# VTFramePro 编译验证工作流（iOS 工程，使用 xcodebuild 而非 swift build）
+name: Build Check
 
 on:
   push:
@@ -11,12 +9,9 @@ on:
 
 jobs:
   build:
-
-    runs-on: macos-latest
-
+    runs-on: macos-26
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+    - uses: actions/checkout@v5
+    - name: Build (no code signing)
+      run: |
+        xcodebuild -project VTFramePro.xcodeproj           -scheme VTFramePro           -configuration Debug           -sdk iphoneos           -destination 'generic/platform=iOS'           CODE_SIGNING_ALLOWED=NO           build
