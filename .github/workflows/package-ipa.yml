@@ -34,7 +34,7 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Select Xcode 26
         run: |
@@ -82,13 +82,10 @@ jobs:
           if [[ "${GITHUB_REF_TYPE}" == "tag" && "$METHOD" == "development" ]]; then
             METHOD="ad-hoc"
           fi
-          bash scripts/package-ipa.sh \
-            --team "${DEVELOPMENT_TEAM}" \
-            --method "${METHOD}" \
-            --configuration "${CONFIG_INPUT}"
+          bash scripts/package-ipa.sh             --team "${DEVELOPMENT_TEAM}"             --method "${METHOD}"             --configuration "${CONFIG_INPUT}"
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: VTFramePro.ipa
           path: build/ipa/*.ipa
